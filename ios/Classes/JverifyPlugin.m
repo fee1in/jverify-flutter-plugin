@@ -646,17 +646,79 @@ JVLayoutConstraint *JVLayoutHeight(CGFloat height) {
     }
 
     /************** privacy ***************/
+
+    //自定义协议
+    NSMutableArray *appPrivacyss = [NSMutableArray array];
+    if([[config allKeys] containsObject:@"privacyText"] && [[config objectForKey:@"privacyText"] isKindOfClass:[NSArray class]])
+    {
+        if ([[config objectForKey:@"privacyText"] count]>=1) {
+            [appPrivacyss addObject:[[config objectForKey:@"privacyText"] objectAtIndex:0]];
+        }
+    }
+    if([[config allKeys] containsObject:@"privacyItem"] && [[config objectForKey:@"privacyItem"] isKindOfClass:[NSString class]]){
+        NSString *privacyJson = [config objectForKey:@"privacyItem"];
+        NSData *privacyData = [privacyJson  dataUsingEncoding:NSUTF8StringEncoding];
+        NSArray *privacys= [NSJSONSerialization JSONObjectWithData:privacyData options:NULL error:nil];
+        for (NSInteger i = 0; i<privacys.count; i++) {
+            NSMutableArray *item = [NSMutableArray array];
+
+            NSDictionary *obj = [privacys objectAtIndex:i];
+
+            //加入协议之间的分隔符
+            if ([[obj allKeys] containsObject:@"separator"] ) {
+                [item addObject:[obj objectForKey:@"separator"]];
+            }
+            //加入name
+            if ([[obj allKeys] containsObject:@"name"] ) {
+                [item addObject:[obj objectForKey:@"name"]];
+            }
+            //加入url
+            if ([[obj allKeys] containsObject:@"url"] ) {
+                [item addObject:[obj objectForKey:@"url"]];
+            }
+            //加入协议详细页面的导航栏文字 可以是NSAttributedString类型 自定义  这里是直接拿name进行展示
+            if ([[obj allKeys] containsObject:@"name"] ) {
+                UIColor *privacyNavTitleTextColor = UIColorFromRGB(-1);
+                if ([self getValue:config key:@"privacyNavTitleTextColor"]) {
+                    privacyNavTitleTextColor = UIColorFromRGB([[self getValue:config key:@"privacyNavTitleTextColor"] intValue]);
+                }
+                NSNumber *privacyNavTitleTextSize = [self getValue:config key:@"privacyNavTitleTextSize"];
+                if (!privacyNavTitleTextSize) {
+                    privacyNavTitleTextSize = @(16);
+                }
+                NSDictionary *privayNavTextAttr = @{NSForegroundColorAttributeName:privacyNavTitleTextColor,
+                                                    NSFontAttributeName:[UIFont systemFontOfSize:[privacyNavTitleTextSize floatValue]]};
+                NSAttributedString *privayAttr = [[NSAttributedString alloc]initWithString:[obj objectForKey:@"name"] attributes:privayNavTextAttr];
+                if(privayAttr){
+                [item addObject:privayAttr];
+                }
+            }
+            //添加一条协议appPrivacyss中
+            [appPrivacyss addObject:item];
+        }
+    }
+    //设置尾部
+    if([[config allKeys] containsObject:@"privacyText"] && [[config objectForKey:@"privacyText"] isKindOfClass:[NSArray class]])
+    {
+        if ([[config objectForKey:@"privacyText"] count]>=2) {
+            [appPrivacyss addObject:[[config objectForKey:@"privacyText"] objectAtIndex:1]];
+        }
+    }
+
+    //设置
+    if (appPrivacyss.count>1) {
+        uiconfig.appPrivacys = appPrivacyss;
+    }
+
     BOOL privacyHintToast = [[self getValue:config key:@"privacyHintToast"] boolValue];
     if(privacyHintToast){
         uiconfig.customPrivacyAlertViewBlock = ^(UIViewController *vc) {
             UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"请点击同意协议" message:nil preferredStyle:UIAlertControllerStyleAlert];
             [alert addAction:[UIAlertAction actionWithTitle:@"确定" style:UIAlertActionStyleDefault handler:nil] ];
             [vc presentViewController:alert animated:true completion:nil];
-            
+
         };
     }
-    
-    
     
     BOOL isCenter = [[self getValue:config key:@"privacyTextCenterGravity"] boolValue];
     NSTextAlignment alignmet = isCenter?NSTextAlignmentCenter:NSTextAlignmentLeft;
@@ -761,6 +823,7 @@ JVLayoutConstraint *JVLayoutHeight(CGFloat height) {
                                         NSFontAttributeName:[UIFont systemFontOfSize:[privacyNavTitleTextSize floatValue]]};
     NSAttributedString *privayAttr = [[NSAttributedString alloc]initWithString:privacyNavText attributes:privayNavTextAttr];
     uiconfig.agreementNavText = privayAttr;
+    uiconfig.agreementNavTextColor = privacyNavTitleTextColor;
     
     NSString *privacyNavReturnBtnImage =[self getValue:config key:@"privacyNavReturnBtnImage"];
     if(privacyNavReturnBtnImage){
@@ -815,6 +878,11 @@ JVLayoutConstraint *JVLayoutHeight(CGFloat height) {
         uiconfig.navCustom = YES;
         uiconfig.windowCornerRadius = [popViewCornerRadius floatValue];
         uiconfig.windowBackgroundAlpha = [backgroundAlpha floatValue];
+        
+        // 弹窗模式背景图
+        if (authBackgroundImage) {
+            uiconfig.windowBackgroundImage = [UIImage imageNamed:authBackgroundImage];
+        }
 
         CGFloat windowW = [width floatValue];
         CGFloat windowH = [height floatValue];
